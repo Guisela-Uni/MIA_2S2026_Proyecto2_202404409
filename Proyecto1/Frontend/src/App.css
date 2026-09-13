@@ -154,3 +154,31 @@ textarea::placeholder {
   color: var(--texto);
   border-color: var(--azul);
 }
+
+.acciones-archivo { 
+  display: flex; 
+  gap: 8px; 
+  align-items: center; 
+}
+
+.boton-archivo { 
+  display: inline-flex; 
+  align-items: center; 
+  cursor: pointer; 
+}
+
+.boton-archivo input { 
+  display: none; 
+}
+
+.archivo-seleccionado { 
+  margin-top: 8px; 
+  min-height: 18px; 
+  color: var(--texto-dim); 
+  font-size: 0.75rem; 
+}
+
+.boton-secundario:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

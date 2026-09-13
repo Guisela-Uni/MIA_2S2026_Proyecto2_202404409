@@ -1,26 +1,11 @@
 import { useState } from 'react'
 import { procesarArchivo } from './api.js'
 
-const EJEMPLO = `# ARCHIVO DE EJEMPLO
-
-#----------------- MKDISK
-# CASO 01 - valido
-mkdisk -size=20 -unit=M -fit=FF -path=/home/calificacion/Disco1.mia
-
-# CASO 02 - valido (mayusculas, valor con espacios entre comillas)
-MKDISK -PATH="/home/misdiscos/Disco Dos.mia" -FIT=BF -SIZE=3000 -UNIT=K
-
-# CASO 03 - ERROR: nombre alterado (lexico)
-mkd1sk -size=10 -path=/home/calificacion/error1.mia
-
-# CASO 04 - ERROR: caracter invalido en el parametro (lexico)
-mkdisk -s!ze=10 -path=/home/calificacion/error2.mia
-`
-
 function App() {
   const [comandos, setComandos] = useState('')
   const [resultados, setResultados] = useState('')
   const [procesando, setProcesando] = useState(false)
+  const [archivoSeleccionado, setArchivoSeleccionado] = useState('')
 
   async function manejarProcesar() {
     if (!comandos.trim() || procesando) return
@@ -40,43 +25,97 @@ function App() {
     }
   }
 
-  function cargarEjemplo() {
-    setComandos(EJEMPLO)
+  function limpiar() {
+    if (procesando) return
+    setComandos('')
+    setResultados('')
+    setArchivoSeleccionado('')
+  }
+
+  function manejarSubirSmia(evento) {
+    const archivo = evento.target.files?.[0]
+    if (!archivo) return
+
+    if (!archivo.name.toLowerCase().endsWith('.smia')) {
+      setResultados('[ERROR] Selecciona un archivo de comandos con extension .smia')
+      evento.target.value = ''
+      return
+    }
+
+    const lector = new FileReader()
+    lector.onload = () => {
+      setComandos(typeof lector.result === 'string' ? lector.result : '')
+      setResultados(`[EXITOSO] Archivo .smia cargado correctamente\nNombre: ${archivo.name}`)
+      setArchivoSeleccionado(archivo.name)
+    }
+    lector.onerror = () => {
+      setResultados('[ERROR] No se pudo leer el archivo .smia')
+      setArchivoSeleccionado('')
+    }
+    lector.readAsText(archivo)
+
+    // Permite volver a seleccionar el mismo archivo posteriormente.
+    evento.target.value = ''
   }
 
   return (
     <div className="app">
       <header className="encabezado">
-        <h1>
-          Analizador de comandos
-        </h1>
+        <h1>Analizador de comandos</h1>
         <p className="subtitulo">
-          Analisis lexico y sintactico de comandos EXT2 
+          Analisis lexico y sintactico de comandos EXT2
         </p>
       </header>
 
       <main className="contenido">
-        {/* ---------- Comandos ---------- */}
         <section className="columna">
           <div className="columna-titulo">
             <h2>Comandos</h2>
-            <button className="boton-secundario" onClick={cargarEjemplo} type="button">
-              Cargar ejemplo
-            </button>
+            <div className="acciones-archivo">
+              <label className="boton-secundario boton-archivo">
+                Subir .smia
+                <input
+                  type="file"
+                  accept=".smia"
+                  onChange={manejarSubirSmia}
+                  disabled={procesando}
+                />
+              </label>
+              <button
+                className="boton-secundario"
+                onClick={limpiar}
+                type="button"
+                disabled={procesando}
+              >
+                Limpiar
+              </button>
+            </div>
           </div>
+
           <textarea
             className="textarea-comandos"
             value={comandos}
-            onChange={(evento) => setComandos(evento.target.value)}
+            onChange={(evento) => {
+              setComandos(evento.target.value)
+              setArchivoSeleccionado('')
+            }}
             placeholder={'# escribe uno o varios comandos, uno por linea\nmkdisk -size=5 -unit=M -path=/home/user/Disco1.mia'}
             spellCheck={false}
           />
-          <button className="boton-procesar" onClick={manejarProcesar} disabled={procesando}>
+
+          <div className="archivo-seleccionado">
+            {archivoSeleccionado && `Archivo: ${archivoSeleccionado}`}
+          </div>
+
+          <button
+            className="boton-procesar"
+            onClick={manejarProcesar}
+            disabled={procesando || !comandos.trim()}
+          >
             {procesando ? 'Procesando...' : 'Procesar'}
           </button>
         </section>
 
-        {/* ---------- Resultados ---------- */}
         <section className="columna">
           <div className="columna-titulo">
             <h2>Resultados</h2>
