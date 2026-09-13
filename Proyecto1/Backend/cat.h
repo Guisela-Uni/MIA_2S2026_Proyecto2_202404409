@@ -1,5 +1,7 @@
-#ifndef CAT_H
-#define CAT_H
+#ifndef CAT_CMD_H
+#define CAT_CMD_H
 #include "estado.h"
-void cat_cmd(std::vector<std::string>&,EstadoGlobal&);
+#include <string>
+#include <vector>
+void cat(std::vector<std::string>& parametros, EstadoGlobal& estado);
 #endif

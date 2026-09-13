@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra
 
-COMUNES = analizador.cpp structs.cpp validaciones.cpp mkdisk.cpp rmdisk.cpp fdisk.cpp mount.cpp mkfs.cpp mkusr.cpp rmusr.cpp mkfile.cpp
+COMUNES = analizador.cpp structs.cpp validaciones.cpp disk_utils.cpp mkdisk.cpp rmdisk.cpp fdisk.cpp mount.cpp mounted.cpp mkfs.cpp ext2_utils.cpp mkusr.cpp rmusr.cpp mkfile.cpp mkdir.cpp cat.cpp login.cpp logout.cpp mkgrp.cpp rmgrp.cpp chgrp.cpp reports.cpp
 
 .PHONY: all consola api run-api run-consola clean
 

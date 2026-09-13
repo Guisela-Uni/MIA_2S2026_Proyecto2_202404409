@@ -21,10 +21,20 @@
 #include "mkusr.h"
 #include "rmusr.h"
 #include "mkfile.h"
+#include "mkdir.h"
+#include "cat.h"
+#include "login.h"
+#include "logout.h"
+#include "mkgrp.h"
+#include "rmgrp.h"
+#include "chgrp.h"
+#include "mounted.h"
+#include "reports.h"
 #include "validaciones.h"
 
 namespace {
-// TODO el "sistema de archivos" vive solo en memoria (RAM) mientras corre el programa. Nunca se leen ni escriben archivos/discos reales.
+// Los discos y el sistema EXT2 se persisten en archivos .mia.
+// El montaje (MOUNT/MOUNTED) es el estado que deliberadamente permanece en RAM.
 // Es UNA sola variable global compartida por todos los comandos, tanto
 EstadoGlobal estado_global;
 }
@@ -134,17 +144,35 @@ void despacharComando(const std::string &tipoComandoOriginal, std::vector<std::s
         mount(parametros, estado_global);
     } else if (tipo_command == "mkfs") {
         mkfs(parametros, estado_global);
+    } else if (tipo_command == "login") {
+        login(parametros, estado_global);
+    } else if (tipo_command == "logout") {
+        logout(parametros, estado_global);
+    } else if (tipo_command == "mkgrp") {
+        mkgrp(parametros, estado_global);
+    } else if (tipo_command == "rmgrp") {
+        rmgrp(parametros, estado_global);
+    } else if (tipo_command == "chgrp") {
+        chgrp(parametros, estado_global);
     } else if (tipo_command == "mkusr") {
         mkusr(parametros, estado_global);
     } else if (tipo_command == "rmusr") {
         rmusr(parametros, estado_global);
     } else if (tipo_command == "mkfile") {
         mkfile(parametros, estado_global);
+    } else if (tipo_command == "mkdir") {
+        mkdir_cmd(parametros, estado_global);
+    } else if (tipo_command == "cat") {
+        cat(parametros, estado_global);
+    } else if (tipo_command == "mounted") {
+        mounted(parametros, estado_global);
+    } else if (tipo_command == "rep") {
+        rep(parametros, estado_global);
     } else {
         // Lexicamente y sintacticamente el comando esta bien escrito,pero no se reconocen en el sistema
         std::cout << "[ERROR] El comando '" << tipoComandoOriginal
                    << "' no es reconocido. Los comandos validos son: MKDISK, RMDISK, FDISK, "
-                   << "MOUNT, MKFS, MKUSR, RMUSR, MKFILE." << std::endl;
+                   << "MOUNT, MOUNTED, MKFS, LOGIN, LOGOUT, MKGRP, RMGRP, MKUSR, RMUSR, CHGRP, MKFILE, MKDIR, CAT, REP." << std::endl;
     }
 }
 

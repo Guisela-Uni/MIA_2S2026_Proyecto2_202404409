@@ -8,9 +8,15 @@ namespace {
 bool soloLetras(const std::string &texto) {
     if (texto.empty()) return false;
     for (unsigned char c : texto) {
-        if (!std::isalpha(c)) {
-            return false;
-        }
+        if (!std::isalpha(c) && c != '_') return false;
+    }
+    return true;
+}
+
+bool nombreParametroValido(const std::string &texto) {
+    if (texto.empty()) return false;
+    for (unsigned char c : texto) {
+        if (!std::isalnum(c) && c != '_') return false;
     }
     return true;
 }
@@ -62,12 +68,12 @@ ResultadoValidacion validarLexico(const std::vector<std::string> &parametros) {
         size_t posIgual = token.find('=');
         std::string nombreParametro = (posIgual == std::string::npos) ? token : token.substr(0, posIgual);
 
-        if (!soloLetras(nombreParametro)) {
+        if (!nombreParametroValido(nombreParametro)) {
             std::string caracter = primerCaracterInvalido(nombreParametro);
             return {false,
                     "Error lexico: el parametro '-" + nombreParametro +
                         "' contiene un caracter no valido ('" + caracter +
-                        "'). El nombre de un parametro solo puede tener letras."};
+                        "'). El nombre de un parametro solo puede contener letras, numeros y guion bajo."};
         }
     }
 

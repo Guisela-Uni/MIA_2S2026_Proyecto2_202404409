@@ -5,39 +5,39 @@
 #include <set>
 #include <string>
 #include <vector>
-
 #include "structs.h"
 
 struct SimDisk {
-    std::string path;                 // path "declarado" por el usuario (clave del registro)
-    int tamano = 0;                   // tamaño total simulado, en bytes
-    char fit = 'f';                   // fit por defecto del disco (f/b/w)
-    time_t creado = 0;
+    std::string path;
+    int tamano = 0;
+    char fit = 'f';
+    std::time_t creado = 0;
     int signature = 0;
-
-    particion particiones[4];         // "MBR" simulado: hasta 4 particiones primarias/extendida
-
-    // Particiones logicas de una extendida: offset virtual -> EBR simulado.
-    std::map<int, EBR> ebrs;
+    particion particiones[4]{};
 };
 
-// Representa un archivo simulado creado con MKFILE
 struct SimFile {
-    int size = 0;              // tamaño en bytes simulado
-    std::string origen;        // valor de -cont, si se proporciono
+    int size = 0;
+    std::string origen;
 };
 
-// Estado global de toda la simulacion, compartido entre todos los comandos.
 struct EstadoGlobal {
-    std::map<std::string, SimDisk> discos;                  // path -> disco simulado (MKDISK/RMDISK/FDISK)
-    std::vector<disco> discosMontados;                       // discos con particiones montadas (MOUNT), con sus ids
-    std::map<std::string, bool> particionesFormateadas;      // id de particion montada -> fue formateada con MKFS
+    // Cache del MBR. La fuente persistente real es el archivo .mia.
+    std::map<std::string, SimDisk> discos;
 
+    // MOUNT es deliberadamente RAM-only según el enunciado.
+    std::vector<disco> discosMontados;
+    std::map<std::string, bool> particionesFormateadas;
+
+    // Compatibilidad con la fase anterior; ya no es la representación principal.
     std::vector<usuario> usuarios;
+    std::map<std::string, SimFile> archivos;
+    std::set<std::string> carpetas;
 
-    // Sistema de archivos simulado (para MKFILE): que archivos y que carpetas "existen" dentro de las particiones simuladas.
-    std::map<std::string, SimFile> archivos;   // path de archivo -> datos simulados
-    std::set<std::string> carpetas;            // paths de carpetas que "existen" en la simulacion
+    // A, B, C... identifica discos diferentes en el ID de MOUNT.
+    char siguienteLetraDisco = 'A';
+
+    struct Sesion { bool activa=false; std::string usuario; std::string id; int uid=-1; int gid=-1; } sesion;
 };
 
 #endif

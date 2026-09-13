@@ -1,168 +1,133 @@
-#ifndef STRUCTS
-#define STRUCTS
+#ifndef STRUCTS_H
+#define STRUCTS_H
 
-#include <time.h>
+#include <ctime>
 #include <string>
 #include <vector>
 #include <regex>
 
-
+// Estructuras binarias del Proyecto 1. No se deben agregar std::string/vector
+// a estas estructuras porque se escriben directamente en el .mia.
 struct particion {
-    char part_status;      
-    char part_type;        // P: primaria, E: extendida, L: logica
-    char part_fit;         // best, worst, first
-    int part_start;        // Inicio en bytes
-    int part_s;            // SIZE
-    char part_name[16];    // Nombre
+    char part_status;          // 0 = no montada, 1 = montada (solo RAM)
+    char part_type;            // p = primaria, e = extendida
+    char part_fit;             // f = FF, b = BF, w = WF
+    int  part_start;
+    int  part_s;
+    char part_name[16];
+    int part_correlativ;       // -1 hasta que se monte
+    char part_id[4];            // ID del mount, solo RAM
 };
 
-// MBR DEL DISCO
 struct MBR {
     int mbr_tamano;
-    time_t mbr_fecha_creacion;
+    std::time_t mbr_fecha_creacion;
     int mbr_dsk_signature;
     char dsk_fit;
     particion mbr_partition[4];
 };
 
-// EBR 
-struct EBR{
-    char part_status;                       //0/1
-    char part_fit;                    // best, worst, first
-    int part_start;                         //Posicion inicial
-    int part_s;                             //tamaño
-    int part_next;                          //sigueinte
-    char part_name[16];                     //Nombre de la partición logica
-
+struct EBR {
+    char part_status;           // solo RAM
+    char part_fit;
+    int part_start;             // inicio de datos de la logica
+    int part_s;
+    int part_next;              // offset del siguiente EBR, -1 si no existe
+    char part_name[16];
 };
 
-
-//POSICIONES DE LAS PARTICIONES
-
-struct position{
-    int inicio;                             
+struct position {
+    int inicio;
     int fin;
     char tipo;
     std::string nombre;
-    int size; 
-
-    bool operator<(const position& a) const
-    {
-        return inicio < a.inicio;
-    }
+    int size;
+    bool operator<(const position& a) const { return inicio < a.inicio; }
 };
 
-//  espacios libres particiones primarias y extendida
-struct libre{
+struct libre {
     int inicio;
     int size;
-
-    //para saber si un libre es menor que otro
-    bool operator<(const libre& a) const
-    {
-        return size < a.size;
-    }
+    bool operator<(const libre& a) const { return size < a.size; }
 };
 
-//espacio vacio
-struct libreL{
-    int inicioEBR;              //leerl el inicio
-    int finLogica;              //Donde termina la particion logica
-    int size;                 //Espacio Libre
-    bool header;              //si es la inicial
-
-    bool operator<(const libreL& a) const
-    {
-        return size < a.size;
-    }
+struct libreL {
+    int inicioEBR;
+    int finLogica;
+    int size;
+    bool header;
+    bool operator<(const libreL& a) const { return size < a.size; }
 };
 
-
-
-//MOUNT (montar disco)
-struct montada{
-    std::string id;                             //ID de a particion montada
-    int posEBR = -1;                            //Si es logica es diferente a -1
-    int posMBR = -1;                            //Si no es logica es diferente a -1
-    std::string nombre;                         //Nombre de la particion
-    int size;                                 //size de la particion en bytes
+struct montada {
+    std::string id;
+    int posEBR = -1;
+    int posMBR = -1;
+    std::string nombre;
+    std::string ruta;
+    int size = 0;
 };
 
-//MANEJA LOS DATOS DE LAS PARTICIONES MONTADAS
-struct disco{
-    std::string ruta;                           //Ruta del disco
-    std::string nombre;                         //Nombre del disco
-    int contador = 1;                           //Sirve para el ID de la montada
-    std::vector<montada> particiones;           //Particiones del disco montadas
+struct disco {
+    std::string ruta;
+    std::string nombre;
+    char letra = 'A';
+    int contador = 1;
+    std::vector<montada> particiones;
 };
 
-//SUPER
-struct sbloque{
-    int s_filesystem_type;              //EXT2
-    int s_inodes_count;                 
-    int s_blocks_count;                 
-    int s_free_blocks_count;            
-    int s_free_inodes_count;            
-    time_t s_mtime;                     
-    time_t s_umtime;                    
-    int s_mnt_count;                    
-    int s_magic;                        
-    int s_inode_s;                      
-    int s_block_s;                      
-    int s_first_ino;                    
-    int s_first_blo;                    
-    int s_bm_inode_start;               
-    int s_bm_block_start;               
-    int s_inode_start;                  
-    int s_block_start;                  
+struct sbloque {
+    int s_filesystem_type;
+    int s_inodes_count;
+    int s_blocks_count;
+    int s_free_blocks_count;
+    int s_free_inodes_count;
+    std::time_t s_mtime;
+    std::time_t s_umtime;
+    int s_mnt_count;
+    int s_magic;
+    int s_inode_s;
+    int s_block_s;
+    int s_first_ino;
+    int s_first_blo;
+    int s_bm_inode_start;
+    int s_bm_block_start;
+    int s_inode_start;
+    int s_block_start;
 };
 
-//INODOS
-struct inodo{
-    int i_uid;                                                    
-    int i_gid;                          
-    int i_s;                            
-    time_t i_atime;                     
-    time_t i_ctime;                     
-    time_t i_mtime;                     
-    int i_block[15];                    
-    char i_type;                        
-    int i_perm;                         
+struct inodo {
+    int i_uid;
+    int i_gid;
+    int i_s;
+    std::time_t i_atime;
+    std::time_t i_ctime;
+    std::time_t i_mtime;
+    int i_block[15];
+    char i_type;                // 0 carpeta, 1 archivo
+    int i_perm;                 // octal, por ejemplo 664
 };
 
-//BLOQUES
-struct content{
+struct content {
     char b_name[12];
-    //numeor del inodo en el que esta el arhico/file                    
-    int b_inodo;                        
+    int b_inodo;
 };
 
-struct bcarpetas{
-    content b_content[4];                 
+struct bcarpetas { content b_content[4]; };
+struct barchivos { char b_content[64]; };
+struct bapuntadores { int b_pointers[16]; };
+
+struct usuario {
+    std::string user;
+    std::string pass;
+    std::string disco;
+    std::string grupo;
+    std::string id_user;
+    std::string id_grp;
 };
 
-struct barchivos{
-    char b_content[64];         
-};
-
-struct bapuntadores{
-    //posicion del otro bloqie
-    int b_pointers[16];                 
-};
-
-//se usa para el login
-struct usuario{
-    std::string user;                   
-    std::string pass;                   
-    std::string disco;                  
-    std::string grupo;                  
-    std::string id_user;                
-    std::string id_grp;                 
-};
-
-// termina el mbr y ya se puede escribir la primera particion
-const int EndMBR = sizeof(MBR) + 1;     
-const std::regex igual("=");
+constexpr int EndMBR = sizeof(MBR);
+constexpr int EXT2_MAGIC = 0xEF53;
+extern const std::regex igual;
 
 #endif
-

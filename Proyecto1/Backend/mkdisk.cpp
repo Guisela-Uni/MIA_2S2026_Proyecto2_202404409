@@ -1,144 +1,56 @@
 #include "mkdisk.h"
-
+#include "disk_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <ctime>
-#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <random>
 #include <regex>
-#include <string>
-#include <vector>
 
-void mkdisk(std::vector<std::string> &parametros, EstadoGlobal &estado) {
-    // ------------- DATA DEL DISCO (solo en memoria)
-    int disk_size = 0;            // TAMAÑO
-    std::string fit;              // ff/bf/wf
-    char fit_char = '0';          // f/b/w
-    std::string disk_unit;        // k/m
-    std::string disk_path;        // PATH (clave logica, no se toca el filesystem real)
+namespace {
+std::string lower(std::string s) { std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return char(std::tolower(c)); }); return s; }
+bool splitParam(const std::string& token, std::string& key, std::string& value) {
+    const auto pos = token.find('=');
+    if (pos == std::string::npos) return false;
+    key = lower(token.substr(0,pos)); value = token.substr(pos+1); return true;
+}
+}
 
-    // pasa a minuscula todo
-    auto to_lower_str = [](std::string &s) {
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
-            return static_cast<char>(std::tolower(c));
-        });
-    };
-
-    // lee los parametros y establece el valor de cada variable size, fit, unit, path
-    for (size_t i = 1; i < parametros.size(); ++i) {
-        std::string &command_data = parametros[i];
-
-        std::vector<std::string> output_data(
-            std::sregex_token_iterator(command_data.begin(), command_data.end(), igual, -1),
-            std::sregex_token_iterator()
-        );
-
-        if (output_data.size() < 2) {
-            std::cout << "[ERROR!] El parametro " << command_data
-                      << " no cuenta con la forma correcta. EJEMPLO: -size=VALOR" << std::endl;
-            return;
-        }
-
-        // nombre_parametro = fit, size, path, unit
-        // valor_parametro = valor asignado al parametro
-        std::string nombre_parametro = output_data[0];
-        std::string valor_parametro  = output_data[1];
-
-        to_lower_str(nombre_parametro);
-
-        if (nombre_parametro == "size") {
-            //prueba pasarlo a entero si no error
-            try {
-                disk_size = std::stoi(valor_parametro);
-            } catch (...) {
-                std::cout << "[ERROR!] El parametro size debe ser un entero" << std::endl;
-                return;
-            }
-        } else if (nombre_parametro == "fit") {
-            to_lower_str(valor_parametro);
-            fit = valor_parametro;
-        } else if (nombre_parametro == "unit") {
-            to_lower_str(valor_parametro);
-            disk_unit = valor_parametro;
-        } else if (nombre_parametro == "path") {
-            disk_path = valor_parametro;
-        } else {
-            std::cout << "[ERROR!] Parametro no valido: " << nombre_parametro << std::endl;
-            return;
-        }
+void mkdisk(std::vector<std::string>& parametros, EstadoGlobal& estado) {
+    int size = -1; std::string fit="ff", unit="m", path;
+    for (size_t i=1;i<parametros.size();++i) {
+        std::string k,v;
+        if(!splitParam(parametros[i],k,v)) { std::cout<<"[ERROR] MKDISK requiere parametros clave=valor.\n"; return; }
+        if(k=="size") { try { size=std::stoi(v); } catch(...) { std::cout<<"[ERROR] -size debe ser entero.\n"; return; } }
+        else if(k=="fit") fit=lower(v);
+        else if(k=="unit") unit=lower(v);
+        else if(k=="path") path=v;
+        else { std::cout<<"[ERROR] Parametro no reconocido en MKDISK: -"<<k<<"\n"; return; }
     }
+    if(size<=0 || path.empty()) { std::cout<<"[ERROR] MKDISK requiere -size>0 y -path.\n"; return; }
+    char fitc; if(fit=="ff") fitc='f'; else if(fit=="bf") fitc='b'; else if(fit=="wf") fitc='w'; else { std::cout<<"[ERROR] -fit debe ser BF, FF o WF.\n"; return; }
+    long long bytes = (unit=="k") ? 1LL*size*1024 : (unit=="m" ? 1LL*size*1024*1024 : -1);
+    if(bytes<=0 || bytes > 0x7fffffffLL) { std::cout<<"[ERROR] -unit debe ser K o M y el tamaño debe ser valido.\n"; return; }
+    if(std::filesystem::path(path).extension() != ".mia") { std::cout<<"[ERROR] El disco debe utilizar extension .mia.\n"; return; }
+    if(std::filesystem::exists(path)) { std::cout<<"[ERROR] Ya existe el archivo de disco: "<<path<<"\n"; return; }
+    std::error_code ec; std::filesystem::create_directories(std::filesystem::path(path).parent_path(),ec);
+    if(ec) { std::cout<<"[ERROR] No se pudieron crear las carpetas de la ruta.\n"; return; }
 
-    //  VALIDACIONES
-    //disk size > 0
-    if (disk_size <= 0) {
-        std::cout << "[ERROR!] El size debe ser mayor que 0" << std::endl;
-        return;
-    }
-    // debe haber un path
-    if (disk_path.empty()) {
-        std::cout << "[ERROR!] MKDISK requiere el parametro path" << std::endl;
-        return;
-    }
+    std::ofstream f(path,std::ios::binary|std::ios::trunc);
+    if(!f) { std::cout<<"[ERROR] No se pudo crear el archivo .mia.\n"; return; }
+    const char zeros[1024]{};
+    long long restantes=bytes;
+    while(restantes>0) { const auto n=std::min<long long>(restantes,sizeof(zeros)); f.write(zeros,n); if(!f){ std::cout<<"[ERROR] Fallo escribiendo el disco.\n"; return; } restantes-=n; }
+    f.close();
 
-    // si no viene fit se va un default
-    if (fit.empty()) {
-        fit = "ff";
-    }
-    // si no viene unit se va default
-    if (disk_unit.empty()) {
-        disk_unit = "m";
-    }
+    MBR mbr{}; mbr.mbr_tamano=int(bytes); mbr.mbr_fecha_creacion=std::time(nullptr); mbr.dsk_fit=fitc;
+    std::random_device rd; mbr.mbr_dsk_signature=int(rd());
+    for(auto& p:mbr.mbr_partition) inicializarParticion(p);
+    if(!escribirMBR(path,mbr)) { std::filesystem::remove(path); std::cout<<"[ERROR] No se pudo escribir el MBR.\n"; return; }
 
-    // pasar de string a char el fit
-    if (fit == "ff") {
-        fit_char = 'f';
-    } else if (fit == "bf") {
-        fit_char = 'b';
-    } else if (fit == "wf") {
-        fit_char = 'w';
-    } else {
-        std::cout << "[ERROR!] Tipo de Fit NO VALIDO - SOLO SE ACEPTA: ff, bf, wf" << std::endl;
-        return;
-    }
-
-    // AJUSTAR TAMAÑO A BYTES
-    int disk_size_bytes = 0;
-    if (disk_unit == "m") {
-        disk_size_bytes = disk_size * 1024 * 1024;
-    } else if (disk_unit == "k") {
-        disk_size_bytes = disk_size * 1024;
-    } else {
-        std::cout << "[ERROR!] Tipo de Unit NO VALIDO - SOLO SE ACEPTA: k, m" << std::endl;
-        return;
-    }
-
-    // "CREACION" DEL DISCO (solo en el registro en memoria)
-    // 1 VERIFICAR QUE NO EXISTA YA UN DISCO SIMULADO CON ESE PATH
-    if (estado.discos.find(disk_path) != estado.discos.end()) {
-        std::cout << "[ERROR!] Ya existe un disco simulado registrado en ese path: " << disk_path << std::endl;
-        return;
-    }
-
-    // 2 REGISTRAR EL DISCO EN MEMORIA (equivalente al MBR inicial)
-    SimDisk nuevo;
-    nuevo.path = disk_path;
-    nuevo.tamano = disk_size_bytes;
-    nuevo.signature = std::rand() % 7777;
-    nuevo.creado = std::time(nullptr);
-    nuevo.fit = fit_char;
-
-    for (int i = 0; i < 4; i++) {
-        std::memset(nuevo.particiones[i].part_name, 0, sizeof(nuevo.particiones[i].part_name));
-        nuevo.particiones[i].part_status = '0';
-        nuevo.particiones[i].part_s = 0;
-        nuevo.particiones[i].part_fit = fit_char;
-        nuevo.particiones[i].part_start = -1;
-        nuevo.particiones[i].part_type = '\0';
-    }
-
-    estado.discos[disk_path] = nuevo;
-
-    std::cout << "[EXITOSO] Comando MKDISK valido. Disco simulado registrado: " << disk_path
-              << " (" << disk_size_bytes << " bytes, fit=" << fit_char << ")" << std::endl;
+    SimDisk d; cargarDisco(path,d); estado.discos[path]=d;
+    std::cout<<"[EXITOSO] Disco creado fisicamente: "<<path<<" ("<<bytes<<" bytes)\n";
 }

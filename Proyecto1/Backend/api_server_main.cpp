@@ -1,8 +1,12 @@
 #include <iostream>
 #include <sstream>
+#include <fstream>
+#include <filesystem>
+#include <cctype>
 
 #include "analizador.h"
 #include "estado.h"
+#include "disk_utils.h"
 #include "http_server.h"
 #include "json_util.h"
 
@@ -43,6 +47,47 @@ RespuestaHttp manejarProcesarArchivo(const PeticionHttp &peticion) {
     respuesta.codigo = 200;
     respuesta.cuerpo = "{\"reporte\":\"" + escapar_json(reporte) + "\"}";
     return respuesta;
+}
+
+
+std::string nombreSeguro(const std::string& nombre) {
+    std::string r;
+    for (char c : nombre) {
+        if (std::isalnum(static_cast<unsigned char>(c)) || c=='.' || c=='_' || c=='-') r += c;
+    }
+    return r;
+}
+
+RespuestaHttp manejarSubirMia(const PeticionHttp &peticion) {
+    if (peticion.cuerpo.empty()) {
+        return RespuestaHttp{400, "application/json", R"({"error":"el archivo .mia esta vacio"})"};
+    }
+    std::string nombre = "disco_subido.mia";
+    auto qpos = peticion.ruta.find("nombre=");
+    if (qpos != std::string::npos) {
+        nombre = nombreSeguro(peticion.ruta.substr(qpos + 7));
+        if (nombre.empty()) nombre = "disco_subido.mia";
+    }
+    if (nombre.size() < 4 || nombre.substr(nombre.size()-4) != ".mia") {
+        return RespuestaHttp{400, "application/json", R"({"error":"solo se permiten archivos .mia"})"};
+    }
+    std::filesystem::path dir = std::filesystem::temp_directory_path() / "analizador_ext2_uploads";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    if (ec) return RespuestaHttp{500, "application/json", R"({"error":"no se pudo crear la carpeta de archivos subidos"})"};
+    std::filesystem::path destino = dir / nombre;
+    std::ofstream f(destino, std::ios::binary | std::ios::trunc);
+    if (!f) return RespuestaHttp{500, "application/json", R"({"error":"no se pudo guardar el archivo .mia"})"};
+    f.write(peticion.cuerpo.data(), static_cast<std::streamsize>(peticion.cuerpo.size()));
+    f.close();
+    SimDisk d;
+    if (!cargarDisco(destino.string(), d)) {
+        std::filesystem::remove(destino, ec);
+        return RespuestaHttp{400, "application/json", R"({"error":"el archivo no contiene un MBR valido"})"};
+    }
+    obtener_estado().discos[destino.string()] = d;
+    std::string json = "{\"nombre\":\"" + escapar_json(nombre) + "\",\"ruta\":\"" + escapar_json(destino.string()) + "\",\"tamano\":" + std::to_string(d.tamano) + "}";
+    return RespuestaHttp{200, "application/json", json};
 }
 
 RespuestaHttp manejarEstado(const PeticionHttp & /*peticion*/) {
@@ -118,6 +163,7 @@ int main() {
     ServidorHttp servidor;
     servidor.agregarRuta("POST", "/api/comando", manejarComando);
     servidor.agregarRuta("POST", "/api/procesar", manejarProcesarArchivo);
+    servidor.agregarRuta("POST", "/api/subir-mia", manejarSubirMia);
     servidor.agregarRuta("GET", "/api/estado", manejarEstado);
 
     std::cout << "======================================================\n";

@@ -1,5 +1,6 @@
-#ifndef LOGIN_H
-#define LOGIN_H
+#ifndef LOGIN_CMD_H
+#define LOGIN_CMD_H
 #include "estado.h"
-void login_cmd(std::vector<std::string>&,EstadoGlobal&);void logout_cmd(std::vector<std::string>&,EstadoGlobal&);
+#include <vector>
+void login(std::vector<std::string>& parametros, EstadoGlobal& estado);
 #endif
