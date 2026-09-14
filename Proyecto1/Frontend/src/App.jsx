@@ -61,9 +61,9 @@ function App() {
   return (
     <div className="app">
       <header className="encabezado">
-        <h1>Analizador de comandos</h1>
+        <h1>Simulador EXT2</h1>
         <p className="subtitulo">
-          Analisis lexico y sintactico de comandos EXT2
+          Simulador de Sistema de Archivos EXT2
         </p>
       </header>
 
